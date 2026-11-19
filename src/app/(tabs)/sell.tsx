@@ -71,7 +71,7 @@ const formatPrice = () => {
 
       <ScrollView contentContainerStyle={styles.form}>
         <Text style={styles.label}>
-          Upload Photos ({photos.length}/{MAX_PHOTOS},)
+          Upload Photos ({photos.length}/{MAX_PHOTOS})
         </Text>
         <View style={styles.photoGrid}>
           {photos.map((uri, i) => (
