@@ -1,3 +1,4 @@
+
 import { useMemo, useState } from "react";
 import {
   FlatList,
@@ -13,7 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../constants/theme";
 
 /* ---------- Types ---------- */
-type Category = "All" | "Uniforms" | "Books";
+
+type Category = "All" | "Uniforms" | "Books" | "School Supply" | "Food";
 type Condition = "Like New" | "Used - Good" | "Used - Fair";
 
 interface Listing {
@@ -24,56 +26,136 @@ interface Listing {
   category: Exclude<Category, "All">;
 }
 
-/* ---------- Mock data (TODO: replace with real API call) ---------- */
+/* ---------- Mock Data ---------- */
+
 const MOCK_LISTINGS: Listing[] = [
-  { id: "1", title: "Pe Uniform, Size M", price: 1071, condition: "Used - Good", category: "Uniforms" },
-  { id: "2", title: "Book of Building", price: 350, condition: "Used - Fair", category: "Books" },
-  { id: "3", title: "Scientific Calculator", price: 6700, condition: "Like New", category: "Books" },
-  { id: "4", title: "NSTP Shirt, Size XXL", price: 67, condition: "Used - Good", category: "Uniforms" },
+  {
+    id: "1",
+    title: "PE Uniform, Size M",
+    price: 1071,
+    condition: "Used - Good",
+    category: "Uniforms",
+  },
+  {
+    id: "2",
+    title: "Book of Building",
+    price: 350,
+    condition: "Used - Fair",
+    category: "Books",
+  },
+  {
+    id: "3",
+    title: "Scientific Calculator",
+    price: 6700,
+    condition: "Like New",
+    category: "School Supply",
+  },
+  {
+    id: "4",
+    title: "NSTP Shirt, Size XXL",
+    price: 67,
+    condition: "Used - Good",
+    category: "Uniforms",
+  },
 ];
 
 const CATEGORIES: Category[] = ["All", "Uniforms", "Books"];
 
-const CONDITION_COLORS: Record<Condition, { bg: string; fg: string }> = {
-  "Like New": { bg: "#D9F7E2", fg: "#0B5A2B" },
-  "Used - Good": { bg: "#D9F7E2", fg: "#2E7D4F" },
-  "Used - Fair": { bg: "#FFEFB8", fg: "#8A6A00" },
+/* ---------- Condition Colors ---------- */
+
+const CONDITION_COLORS: Record<
+  Condition,
+  { bg: string; fg: string }
+> = {
+  "Like New": {
+    bg: "#D9F7E2",
+    fg: "#0B5A2B",
+  },
+  "Used - Good": {
+    bg: "#D9F7E2",
+    fg: "#2E7D4F",
+  },
+  "Used - Fair": {
+    bg: "#FFEFB8",
+    fg: "#8A6A00",
+  },
 };
 
 /* ---------- Screen ---------- */
+
 export default function HomeScreen() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<Category>("All");
 
+  /* ---------- Dynamic Filtering ---------- */
+
   const listings = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return MOCK_LISTINGS.filter(
-      (l) =>
-        (category === "All" || l.category === category) &&
-        (q === "" || l.title.toLowerCase().includes(q))
-    );
+    const query = search.trim().toLowerCase();
+
+    return MOCK_LISTINGS.filter((item) => {
+      const matchesCategory =
+        category === "All" || item.category === category;
+
+      const matchesSearch =
+        item.title.toLowerCase().includes(query);
+
+      return matchesCategory && matchesSearch;
+    });
   }, [search, category]);
+
+  /* ---------- Listing Card ---------- */
 
   const renderItem = ({ item }: { item: Listing }) => {
     const badge = CONDITION_COLORS[item.condition];
+
     return (
       <Pressable
         style={styles.card}
-        onPress={() => console.log("open listing", item.id)} // TODO: go to details
+        onPress={() => console.log("Open listing:", item.id)}
       >
+        {/* Image Placeholder */}
         <View style={styles.cardImage} />
+
         <View style={styles.cardBody}>
-          <Text style={styles.price}>₱ {item.price.toLocaleString("en-PH")}</Text>
+
+          {/* Dynamic Price */}
+          <Text style={styles.price}>
+            ₱ {item.price.toLocaleString("en-PH")}
+          </Text>
+
+          {/* Dynamic Title */}
           <Text style={styles.title} numberOfLines={1}>
             {item.title}
           </Text>
-          <View style={[styles.badge, { backgroundColor: badge.bg }]}>
-            <Text style={[styles.badgeText, { color: badge.fg }]}>{item.condition}</Text>
+
+          {/* Dynamic Condition */}
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: badge.bg },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: badge.fg },
+              ]}
+            >
+              {item.condition}
+            </Text>
           </View>
+
+          {/* Dynamic Category */}
+          <Text style={styles.category}>
+            {item.category}
+          </Text>
+
         </View>
       </Pressable>
     );
   };
+
+  /* ---------- UI ---------- */
 
   return (
     <View style={styles.container}>
@@ -81,9 +163,18 @@ export default function HomeScreen() {
 
       {/* Header */}
       <SafeAreaView edges={["top"]} style={styles.header}>
-        <Text style={styles.headerTitle}>Colegio De Marketplace</Text>
+        <Text style={styles.headerTitle}>
+          Colegio De Marketplace
+        </Text>
+
+        {/* Search Bar */}
         <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={20} color={colors.text} />
+          <Ionicons
+            name="search-outline"
+            size={20}
+            color={colors.text}
+          />
+
           <TextInput
             style={styles.searchInput}
             placeholder="Search NSTP Uniform..."
@@ -95,23 +186,34 @@ export default function HomeScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Category chips */}
+      {/* Category Filters */}
       <View style={styles.chipRow}>
-        {CATEGORIES.map((c) => {
-          const active = c === category;
+        {CATEGORIES.map((item) => {
+          const active = item === category;
+
           return (
             <Pressable
-              key={c}
-              onPress={() => setCategory(c)}
-              style={[styles.chip, active && styles.chipActive]}
+              key={item}
+              onPress={() => setCategory(item)}
+              style={[
+                styles.chip,
+                active && styles.chipActive,
+              ]}
             >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>{c}</Text>
+              <Text
+                style={[
+                  styles.chipText,
+                  active && styles.chipTextActive,
+                ]}
+              >
+                {item}
+              </Text>
             </Pressable>
           );
         })}
       </View>
 
-      {/* Listings grid */}
+      {/* Listings Grid */}
       <FlatList
         data={listings}
         keyExtractor={(item) => item.id}
@@ -120,22 +222,32 @@ export default function HomeScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.empty}>No listings found.</Text>}
+        ListEmptyComponent={
+          <Text style={styles.empty}>
+            No listings found.
+          </Text>
+        }
       />
     </View>
   );
 }
 
 /* ---------- Styles ---------- */
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
 
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+
+  /* Header */
   header: {
     backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingBottom: 18,
     alignItems: "center",
   },
+
   headerTitle: {
     color: colors.textGreenBg,
     fontSize: 16,
@@ -143,6 +255,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 14,
   },
+
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -153,9 +266,22 @@ const styles = StyleSheet.create({
     height: 46,
     gap: 10,
   },
-  searchInput: { flex: 1, fontSize: 14, color: colors.text, paddingVertical: 0 },
 
-  chipRow: { flexDirection: "row", gap: 8, paddingHorizontal: 16, paddingVertical: 14 },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    color: colors.text,
+    paddingVertical: 0,
+  },
+
+  /* Category Chips */
+  chipRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+
   chip: {
     paddingHorizontal: 16,
     paddingVertical: 6,
@@ -164,23 +290,64 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.background,
   },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 12, fontWeight: "600", color: colors.text },
-  chipTextActive: { color: colors.textGreenBg },
 
-  list: { paddingHorizontal: 12, paddingBottom: 24 },
-  row: { gap: 12, marginBottom: 12 },
+  chipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
 
+  chipText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.text,
+  },
+
+  chipTextActive: {
+    color: colors.textGreenBg,
+  },
+
+  /* Listing Grid */
+  list: {
+    paddingHorizontal: 12,
+    paddingBottom: 24,
+  },
+
+  row: {
+    gap: 12,
+    marginBottom: 12,
+  },
+
+  /* Listing Card */
   card: {
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: 10,
     overflow: "hidden",
   },
-  cardImage: { width: "100%", height: 100, backgroundColor: colors.border },
-  cardBody: { padding: 8, gap: 2 },
-  price: { fontSize: 14, fontWeight: "600", color: colors.text },
-  title: { fontSize: 12, color: colors.text },
+
+  cardImage: {
+    width: "100%",
+    height: 100,
+    backgroundColor: colors.border,
+  },
+
+  cardBody: {
+    padding: 8,
+    gap: 2,
+  },
+
+  /* Dynamic Attributes */
+  price: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
+  },
+
+  title: {
+    fontSize: 12,
+    color: colors.text,
+  },
+
   badge: {
     alignSelf: "flex-start",
     marginTop: 6,
@@ -188,7 +355,22 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 10,
   },
-  badgeText: { fontSize: 10, fontWeight: "600" },
 
-  empty: { textAlign: "center", marginTop: 40, color: colors.textMuted },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: "600",
+  },
+
+  category: {
+    fontSize: 10,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+
+  /* Empty Results */
+  empty: {
+    textAlign: "center",
+    marginTop: 40,
+    color: colors.textMuted,
+  },
 });
