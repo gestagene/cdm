@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
+import { colors } from "../../constants/theme";
 
 const CATEGORIES = ["Uniforms", "Books", "Merch", "Others"];
 const CONDITIONS = ["New", "Like New", "Good", "Fair"];
@@ -43,30 +44,31 @@ export default function Sell() {
   const removePhoto = (index: number) => {
     setPhotos(photos.filter((_, i) => i !== index));
   };
-const handlePriceChange = (text: string) => {
-  // keep only digits and one dot, max 2 decimals
-  const [whole, ...rest] = text.replace(/[^0-9.]/g, "").split(".");
-  const cleaned = rest.length ? `${whole}.${rest.join("").slice(0, 2)}` : whole;
-  setPrice(cleaned);
-};
+  const handlePriceChange = (text: string) => {
+    // keep only digits and one dot, max 2 decimals
+    const [whole, ...rest] = text.replace(/[^0-9.]/g, "").split(".");
+    const cleaned = rest.length
+      ? `${whole}.${rest.join("").slice(0, 2)}`
+      : whole;
+    setPrice(cleaned);
+  };
 
-const formatPrice = () => {
-  const value = parseFloat(price);
-  if (!isNaN(value)) setPrice(value.toFixed(2));
-};
-  
+  const formatPrice = () => {
+    const value = parseFloat(price);
+    if (!isNaN(value)) setPrice(value.toFixed(2));
+  };
+
   const handlePost = () => {
     if (!title || !price || !category || !condition || !description) {
       alert("Please fill in all fields");
       return;
     }
-    console.log({ title, price, category, condition, description, photos });
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerText}>Sell an Item</Text>
+        <Text style={styles.headerText}>New Listing</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.form}>
@@ -110,15 +112,15 @@ const formatPrice = () => {
 
         <Text style={styles.label}>Price</Text>
         <View style={styles.priceBox}>
-        <Text style={styles.pesoSign}>₱</Text>
-        <TextInput
+          <Text style={styles.pesoSign}>₱</Text>
+          <TextInput
             style={styles.priceInput}
             placeholder="0.00"
             keyboardType="decimal-pad"
             value={price}
             onChangeText={handlePriceChange}
-              onBlur={formatPrice}
-                />
+            onBlur={formatPrice}
+          />
         </View>
 
         <Text style={styles.label}>Category</Text>
@@ -129,7 +131,11 @@ const formatPrice = () => {
               style={[styles.chip, category === item && styles.chipActive]}
               onPress={() => setCategory(category === item ? "" : item)}
             >
-              <Text style={category === item ? styles.chipTextActive : styles.chipText}>
+              <Text
+                style={
+                  category === item ? styles.chipTextActive : styles.chipText
+                }
+              >
                 {item}
               </Text>
             </TouchableOpacity>
@@ -144,7 +150,11 @@ const formatPrice = () => {
               style={[styles.chip, condition === item && styles.chipActive]}
               onPress={() => setCondition(condition === item ? "" : item)}
             >
-              <Text style={condition === item ? styles.chipTextActive : styles.chipText}>
+              <Text
+                style={
+                  condition === item ? styles.chipTextActive : styles.chipText
+                }
+              >
                 {item}
               </Text>
             </TouchableOpacity>
@@ -168,14 +178,23 @@ const formatPrice = () => {
   );
 }
 
-const GREEN = "#065F2C";
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  header: { backgroundColor: GREEN, paddingTop: 50, paddingBottom: 16, paddingHorizontal: 16 },
-  headerText: { color: "#fff", fontSize: 18, fontWeight: "bold" },
+  header: {
+    backgroundColor: colors.primary,
+    paddingTop: 50,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+  },
+  headerText: { color: colors.textGreenBg, fontSize: 18, fontWeight: "bold" },
   form: { padding: 16, paddingBottom: 140 },
-  label: { fontSize: 13, fontWeight: "600", marginTop: 14, marginBottom: 6, color: "#333" },
+  label: {
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 14,
+    marginBottom: 6,
+    color: colors.text,
+  },
   photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   photoCard: {
     width: 100,
@@ -225,11 +244,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#DDD",
   },
-  chipActive: { backgroundColor: GREEN, borderColor: GREEN },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { color: "#333" },
   chipTextActive: { color: "#fff" },
   postButton: {
-    backgroundColor: GREEN,
+    backgroundColor: colors.primary,
     padding: 14,
     borderRadius: 25,
     alignItems: "center",
