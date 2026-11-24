@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -19,6 +20,16 @@ export default function SignUp() {
   const insets = useSafeAreaInsets();
   const [hidePassword, setHidePassword] = useState(true);
   const [hideConfirm, setHideConfirm] = useState(true);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const onLogin = () => {
+  setIsLoading(true);
+  // fake delay for now. Later this is where the database call goes.
+  setTimeout(() => {
+    setIsLoading(false);
+    router.replace('/(tabs)');
+  }, 1500);
+};
  
   return (
     <KeyboardAvoidingView
@@ -44,6 +55,7 @@ export default function SignUp() {
               placeholder="Username"
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
+              editable={!isLoading}
             />
           </View>
  
@@ -54,16 +66,18 @@ export default function SignUp() {
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               secureTextEntry={hidePassword}
+              editable={!isLoading}
             />
             <TouchableOpacity
               style={styles.eye}
               onPress={() => setHidePassword((h) => !h)}
+              disabled={isLoading}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons
                 name={hidePassword ? 'eye-off-outline' : 'eye-outline'}
                 size={22}
-                color={colors.textMuted}
+                 color={isLoading ? colors.border : colors.textMuted}
               />
             </TouchableOpacity>
           </View>
@@ -75,16 +89,18 @@ export default function SignUp() {
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               secureTextEntry={hideConfirm}
+              editable={!isLoading}
             />
             <TouchableOpacity
               style={styles.eye}
               onPress={() => setHideConfirm((h) => !h)}
+              disabled={isLoading}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <Ionicons
                 name={hideConfirm ? 'eye-off-outline' : 'eye-outline'}
                 size={22}
-                color={colors.textMuted}
+                color={isLoading ? colors.border : colors.textMuted}
               />
             </TouchableOpacity>
           </View>
@@ -96,6 +112,7 @@ export default function SignUp() {
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
               keyboardType="phone-pad"
+              editable={!isLoading}
             />
           </View>
  
@@ -103,15 +120,30 @@ export default function SignUp() {
             Note: Your phone number can also be used to reset your password.
           </Text>
  
-          <TouchableOpacity activeOpacity={0.85} style={styles.button} onPress={() => router.replace('/(tabs)')}>
+          <TouchableOpacity
+              activeOpacity={0.85}
+              style={[
+              styles.button,
+             { backgroundColor: isLoading ? 'rgba(2, 102, 54, 0.5)': colors.primary },
+              ]}
+            onPress={onLogin}
+            disabled={isLoading}
+          >
+           {isLoading ? (
+            <ActivityIndicator color={colors.textGreenBg} />
+              ) : (
             <Text style={styles.buttonText}>Submit</Text>
+  )}
           </TouchableOpacity>
  
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => router.replace('/login')}>
-              <Text style={styles.link}>Log in Here</Text>
-            </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.replace({ pathname: '/login', params: { from: 'link' } })}
+            disabled={isLoading}
+>
+            <Text style={styles.link}>Log in Here</Text>
+           </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -155,6 +187,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
   },
+  inputDisabled: { backgroundColor: colors.surface, opacity: 0.6 },
+
   eye: { position: 'absolute', right: 16 },
   note: {
     fontSize: 10,
