@@ -150,17 +150,20 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   hero: { flex: 1, paddingHorizontal: 24 },
   headline: {
-    color: colors.textGreenBg,
-    fontSize: 44,
-    lineHeight: 54,
+    color: '#ffffff',
+    fontSize: 46,
+    lineHeight: 56,
     fontWeight: '800',
+    textShadowRadius: 20,
+    letterSpacing: -0.5
   },
   tagline: {
-    color: colors.textGreenBg,
-    fontSize: 22,
-    lineHeight: 30,
+    color: '#E6FFF1',
+    fontSize: 21,
+    lineHeight: 28,
     fontStyle: 'italic',
     fontWeight: '600',
+    letterSpacing: 0.3,
     marginTop: 70,
   },
   sheet: {
