@@ -3,6 +3,8 @@ import {
   View,
   Text,
   TextInput,
+  Image,
+  ScrollView,
   FlatList,
   TouchableOpacity,
   StyleSheet,
@@ -15,8 +17,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 // Same colors as the team's theme file.
-// If your project exports `colors`, delete this block and use the same
-// import line that _layout.tsx uses.
+// If you want to use the team's file instead, delete this block and add:
+//   import { colors } from '@/constants/theme';
 const colors = {
   primary: '#026636',
   background: '#FFFFFF',
@@ -29,42 +31,60 @@ const colors = {
   error: '#EF4444',
 };
 
+// =====================================================================
+// 1. DATA MODEL
+// =====================================================================
+
+// The name used for messages that YOU send.
+// Later, replace this with the logged-in user's name.
+const CURRENT_USER = 'You';
+
 type Message = {
   id: string;
-  text: string;
-  fromMe: boolean;
-  time: string;
+  sender: string;   // Sender
+  message: string;  // Message
+  date: string;     // Date (ISO string)
+  unread: boolean;  // Unread: true / false
+};
+
+// The items this app focuses on
+const CATEGORIES = ['PE Shirt', 'NSTP Shirt', 'School Pants', 'PE Pants'] as const;
+type Category = (typeof CATEGORIES)[number];
+
+type Product = {
+  category: Category; // used by the category filter
+  title: string;      // "PE Shirt, Size M"
+  price: number;      // 1071
+  condition: string;  // "Used - Good"
+  image?: string;     // optional image URL
 };
 
 type Conversation = {
   id: string;
-  name: string;
-  course: string;
-  time: string;
-  unread: boolean;
+  name: string;       // the person you are chatting with
+  course: string;     // "BSIT"
+  product?: Product;  // the item they are asking about / ordering
   messages: Message[];
 };
 
-// Sample data. Replace with real data from your backend later.
-const INITIAL: Conversation[] = [
-  { id: '1', name: 'Gene Brian Gesta', course: 'BSIT', time: '2m', unread: true,
-    messages: [{ id: 'a', text: 'Is the NSTP uniform still available?', fromMe: false, time: '10:40 AM' }] },
-  { id: '2', name: 'Sherlyn Dablo', course: 'BSIT', time: '1h', unread: true,
-    messages: [{ id: 'a', text: "I'll take it", fromMe: false, time: '9:50 AM' }] },
-  { id: '3', name: 'John Earl Abanilla', course: 'BSIT', time: 'Yesterday', unread: false,
-    messages: [{ id: 'a', text: '67 67 67', fromMe: false, time: '4:10 PM' }] },
-  { id: '4', name: 'Henry James Vargas', course: 'BSIT', time: 'Yesterday', unread: false,
-    messages: [{ id: 'a', text: 'Would you do 1,000?', fromMe: false, time: '3:20 PM' }] },
-  { id: '5', name: 'Mark Joshua Jacob', course: 'BSIT', time: 'Yesterday', unread: false,
-    messages: [{ id: 'a', text: 'Scammer', fromMe: false, time: '2:05 PM' }] },
-  { id: '6', name: 'Joash Gabriel Mendoza', course: 'BSIT', time: 'Yesterday', unread: false,
-    messages: [{ id: 'a', text: 'zzz', fromMe: false, time: '1:45 PM' }] },
-  { id: '7', name: 'John Paul Labaguis', course: 'BSIT', time: 'Yesterday', unread: true,
-    messages: [{ id: 'a', text: 'Hi po', fromMe: false, time: '11:30 AM' }] },
-];
+// =====================================================================
+// 2. HELPERS
+// =====================================================================
 
-function nowLabel() {
-  const d = new Date();
+const lastMessage = (c: Conversation): Message | undefined =>
+  c.messages[c.messages.length - 1];
+
+// A conversation is "unread" if the OTHER person sent a message you haven't read
+const hasUnread = (c: Conversation): boolean =>
+  c.messages.some((m) => m.unread && m.sender !== CURRENT_USER);
+
+function formatPrice(n: number): string {
+  return '₱' + n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+// "10:45 AM"
+function formatTime(iso: string): string {
+  const d = new Date(iso);
   let h = d.getHours();
   const m = d.getMinutes().toString().padStart(2, '0');
   const ampm = h >= 12 ? 'PM' : 'AM';
@@ -72,11 +92,217 @@ function nowLabel() {
   return `${h}:${m} ${ampm}`;
 }
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const isSameDay = (a: Date, b: Date) =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
+
+// "Today" / "Yesterday" / "Nov 22, 2026"  (date divider inside the chat)
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(now.getDate() - 1);
+  if (isSameDay(d, now)) return 'Today';
+  if (isSameDay(d, yesterday)) return 'Yesterday';
+  return `${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
+// "2m" / "1h" / "Yesterday"  (time shown in the conversation list)
+function listTime(iso: string): string {
+  const d = new Date(iso);
+  const diffMin = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (diffMin < 1) return 'Now';
+  if (diffMin < 60) return `${diffMin}m`;
+  if (isSameDay(d, new Date())) return `${Math.floor(diffMin / 60)}h`;
+  return dayLabel(iso);
+}
+
+// =====================================================================
+// 3. SAMPLE DATA (replace with your backend later)
+// =====================================================================
+
+const minutesAgo = (n: number) => new Date(Date.now() - n * 60000).toISOString();
+
+const yesterdayAt = (h: number, m = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+};
+
+const SAMPLE_CONVERSATIONS: Conversation[] = [
+  {
+    id: '1',
+    name: 'Gene Brian Gesta',
+    course: 'BSIT',
+    product: { category: 'NSTP Shirt', title: 'NSTP Shirt, Size L', price: 250, condition: 'Used - Good' },
+    messages: [
+      { id: 'a', sender: 'Gene Brian Gesta', message: 'Is the NSTP shirt still available?', date: minutesAgo(2), unread: true },
+    ],
+  },
+  {
+    id: '2',
+    name: 'Sherlyn Dablo',
+    course: 'BSIT',
+    product: { category: 'PE Pants', title: 'PE Pants, Size M', price: 300, condition: 'Like New' },
+    messages: [
+      { id: 'a', sender: 'Sherlyn Dablo', message: "I'll take it", date: minutesAgo(60), unread: true },
+    ],
+  },
+  {
+    id: '3',
+    name: 'John Earl Abanilla',
+    course: 'BSIT',
+    product: { category: 'School Pants', title: 'School Pants, Size 32', price: 400, condition: 'Used - Fair' },
+    messages: [
+      { id: 'a', sender: 'John Earl Abanilla', message: 'Is the waist really size 32?', date: yesterdayAt(20, 10), unread: false },
+    ],
+  },
+  {
+    id: '4',
+    name: 'Henry James Vargas',
+    course: 'BSIT',
+    product: { category: 'PE Shirt', title: 'PE Shirt, Size L', price: 350, condition: 'Used - Good' },
+    messages: [
+      { id: 'a', sender: 'Henry James Vargas', message: 'Would you do 250?', date: yesterdayAt(19, 20), unread: false },
+    ],
+  },
+  {
+    id: '5',
+    name: 'Mark Joshua Jacob',
+    course: 'BSIT',
+    product: { category: 'PE Shirt', title: 'PE Shirt, Size M', price: 350, condition: 'Used - Good' },
+    messages: [
+      { id: 'a', sender: CURRENT_USER, message: 'Boss last price?', date: yesterdayAt(18, 0), unread: false },
+      { id: 'b', sender: 'Mark Joshua Jacob', message: '300 na lang po', date: yesterdayAt(18, 5), unread: false },
+    ],
+  },
+  {
+    id: '6',
+    name: 'Joash Gabriel Mendoza',
+    course: 'BSIT',
+    product: { category: 'NSTP Shirt', title: 'NSTP Shirt, Size S', price: 200, condition: 'Used - Good' },
+    messages: [
+      { id: 'a', sender: 'Joash Gabriel Mendoza', message: 'Pwede po ba meet up bukas?', date: yesterdayAt(17, 45), unread: false },
+    ],
+  },
+  {
+    id: '7',
+    name: 'John Paul Labaguis',
+    course: 'BSIT',
+    product: { category: 'School Pants', title: 'School Pants, Size 30', price: 380, condition: 'Like New' },
+    messages: [
+      { id: 'a', sender: 'John Paul Labaguis', message: 'Hi po', date: yesterdayAt(16, 30), unread: true },
+    ],
+  },
+  {
+    id: '8',
+    name: 'Angelo Ramirez',
+    course: 'BSIT',
+    product: { category: 'PE Pants', title: 'PE Pants, Size L', price: 320, condition: 'Used - Good' },
+    messages: [
+      { id: 'a', sender: 'Angelo Ramirez', message: 'Available pa po ba ang PE pants?', date: yesterdayAt(15, 10), unread: false },
+    ],
+  },
+];
+
+// =====================================================================
+// 4. COMPONENTS
+// =====================================================================
+
+// ---- MessageBubble: one chat message --------------------------------
+// Usage: <MessageBubble message={item} />
+function MessageBubble({ message }: { message: Message }) {
+  const isMine = message.sender === CURRENT_USER;
+  return (
+    <View style={[bubble.wrap, isMine ? bubble.right : bubble.left]}>
+      <View style={[bubble.box, isMine ? bubble.boxMine : bubble.boxTheirs]}>
+        <Text style={[bubble.text, isMine ? bubble.textMine : bubble.textTheirs]}>
+          {message.message}
+        </Text>
+      </View>
+      <Text style={bubble.time}>{formatTime(message.date)}</Text>
+    </View>
+  );
+}
+
+// ---- ProductCard: the item they are ordering ------------------------
+// Usage: <ProductCard product={conversation.product} />
+function ProductCard({ product }: { product: Product }) {
+  return (
+    <View style={card.card}>
+      {product.image ? (
+        <Image source={{ uri: product.image }} style={card.image} />
+      ) : (
+        <View style={[card.image, card.imagePlaceholder]} />
+      )}
+      <View style={card.info}>
+        <Text style={card.price}>{formatPrice(product.price)}</Text>
+        <Text style={card.title} numberOfLines={1}>
+          {product.title}
+        </Text>
+        <View style={card.badge}>
+          <Text style={card.badgeText}>{product.condition}</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// ---- ConversationItem: one row in the list --------------------------
+// Usage: <ConversationItem conversation={item} onPress={() => open(item.id)} />
+function ConversationItem({
+  conversation,
+  onPress,
+}: {
+  conversation: Conversation;
+  onPress: () => void;
+}) {
+  const last = lastMessage(conversation);
+  const unread = hasUnread(conversation);
+  const preview = last
+    ? last.sender === CURRENT_USER
+      ? `You: ${last.message}`
+      : last.message
+    : '';
+
+  return (
+    <TouchableOpacity style={item.row} activeOpacity={0.6} onPress={onPress}>
+      <View style={item.avatar} />
+      <View style={item.text}>
+        <Text style={[item.name, unread ? item.bold : item.muted]} numberOfLines={1}>
+          {conversation.name}
+        </Text>
+        <Text style={[item.preview, unread ? item.bold : item.muted]} numberOfLines={1}>
+          {preview}
+        </Text>
+      </View>
+      <View style={item.meta}>
+        <Text style={item.time}>{last ? listTime(last.date) : ''}</Text>
+        {unread && <View style={item.dot} />}
+      </View>
+      {conversation.product?.image ? (
+        <Image source={{ uri: conversation.product.image }} style={item.thumb} />
+      ) : (
+        <View style={item.thumb} />
+      )}
+    </TouchableOpacity>
+  );
+}
+
+// =====================================================================
+// 5. SCREEN (this is what the tab shows)
+// =====================================================================
+
 export default function MessagesScreen() {
-  const [conversations, setConversations] = useState<Conversation[]>(INITIAL);
+  const [conversations, setConversations] = useState<Conversation[]>(SAMPLE_CONVERSATIONS);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [onlyUnread, setOnlyUnread] = useState(false);
+  const [category, setCategory] = useState<Category | null>(null);
 
   const selected = conversations.find((c) => c.id === selectedId) ?? null;
 
@@ -90,79 +316,61 @@ export default function MessagesScreen() {
     return () => sub.remove();
   }, [selectedId]);
 
+  // Open a chat and mark its messages as read
   const openChat = (id: string) => {
     setConversations((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, unread: false } : c))
+      prev.map((c) =>
+        c.id !== id
+          ? c
+          : { ...c, messages: c.messages.map((m) => ({ ...m, unread: false })) }
+      )
     );
     setSelectedId(id);
   };
 
+  // Add a new message that YOU sent
   const sendMessage = (id: string, text: string) => {
-    const msg: Message = {
-      id: Date.now().toString(),
-      text,
-      fromMe: true,
-      time: nowLabel(),
+    const newMessage: Message = {
+      id: `${Date.now()}`,
+      sender: CURRENT_USER,
+      message: text,
+      date: new Date().toISOString(),
+      unread: false,
     };
-    setConversations((prev) => {
-      const target = prev.find((c) => c.id === id);
-      if (!target) return prev;
-      const updated: Conversation = {
-        ...target,
-        time: 'Now',
-        messages: [...target.messages, msg],
-      };
-      // move the updated conversation to the top
-      return [updated, ...prev.filter((c) => c.id !== id)];
-    });
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, messages: [...c.messages, newMessage] } : c))
+    );
   };
 
-  const filtered = useMemo(() => {
+  // Search + Unread filter, newest conversation first
+  const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return conversations.filter((c) => {
-      if (onlyUnread && !c.unread) return false;
-      if (!q) return true;
-      const last = c.messages[c.messages.length - 1]?.text ?? '';
-      return c.name.toLowerCase().includes(q) || last.toLowerCase().includes(q);
-    });
-  }, [conversations, search, onlyUnread]);
+    const time = (c: Conversation) => new Date(lastMessage(c)?.date ?? 0).getTime();
+    return conversations
+      .filter((c) => {
+        if (onlyUnread && !hasUnread(c)) return false;
+        if (category && c.product?.category !== category) return false;
+        if (!q) return true;
+        const last = lastMessage(c)?.message ?? '';
+        const item = c.product?.title ?? '';
+        return (
+          c.name.toLowerCase().includes(q) ||
+          last.toLowerCase().includes(q) ||
+          item.toLowerCase().includes(q)
+        );
+      })
+      .sort((a, b) => time(b) - time(a));
+  }, [conversations, search, onlyUnread, category]);
 
   if (selected) {
     return (
-      <ChatView
+      <ChatScreen
         conversation={selected}
-        onBack={() => setSelectedId(null)}
+        onClose={() => setSelectedId(null)}
         onSend={(text) => sendMessage(selected.id, text)}
       />
     );
   }
-
-  const renderItem = ({ item }: { item: Conversation }) => {
-    const last = item.messages[item.messages.length - 1];
-    const preview = last ? (last.fromMe ? `You: ${last.text}` : last.text) : '';
-    return (
-      <TouchableOpacity
-        style={styles.row}
-        activeOpacity={0.6}
-        onPress={() => openChat(item.id)}
-      >
-        <View style={styles.avatar} />
-        <View style={styles.rowText}>
-          <Text style={[styles.name, item.unread ? styles.bold : styles.muted]} numberOfLines={1}>
-            {item.name}
-          </Text>
-          <Text style={[styles.preview, item.unread ? styles.bold : styles.muted]} numberOfLines={1}>
-            {preview}
-          </Text>
-        </View>
-        <View style={styles.meta}>
-          <Text style={styles.time}>{item.time}</Text>
-          {item.unread && <View style={styles.dot} />}
-        </View>
-        <View style={styles.thumb} />
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -187,19 +395,40 @@ export default function MessagesScreen() {
         </View>
       </View>
 
-      <View style={styles.filterRow}>
-        <TouchableOpacity
-          style={[styles.chip, onlyUnread && styles.chipActive]}
-          onPress={() => setOnlyUnread((v) => !v)}
+      {/* Filters: Unread + the 4 item categories */}
+      <View style={styles.filterWrap}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
         >
-          <Text style={[styles.chipText, onlyUnread && styles.chipTextActive]}>Unread</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.chip, onlyUnread && styles.chipActive]}
+            onPress={() => setOnlyUnread((v) => !v)}
+          >
+            <Text style={[styles.chipText, onlyUnread && styles.chipTextActive]}>Unread</Text>
+          </TouchableOpacity>
+
+          {CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              style={[styles.chip, category === cat && styles.chipActive]}
+              onPress={() => setCategory(category === cat ? null : cat)}
+            >
+              <Text style={[styles.chipText, category === cat && styles.chipTextActive]}>
+                {cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
+        data={visible}
+        keyExtractor={(c) => c.id}
+        renderItem={({ item: c }) => (
+          <ConversationItem conversation={c} onPress={() => openChat(c.id)} />
+        )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         style={styles.list}
         contentContainerStyle={{ paddingBottom: 120 }}
@@ -209,17 +438,37 @@ export default function MessagesScreen() {
   );
 }
 
-function ChatView({
+// ---- ChatScreen: opens when you tap a conversation ------------------
+type ChatItem =
+  | { type: 'date'; id: string; label: string }
+  | { type: 'message'; id: string; message: Message };
+
+function ChatScreen({
   conversation,
-  onBack,
+  onClose,
   onSend,
 }: {
   conversation: Conversation;
-  onBack: () => void;
+  onClose: () => void;
   onSend: (text: string) => void;
 }) {
   const [draft, setDraft] = useState('');
-  const listRef = useRef<FlatList<Message>>(null);
+  const listRef = useRef<FlatList<ChatItem>>(null);
+
+  // Put a "Today" / "Yesterday" divider whenever the day changes
+  const items = useMemo<ChatItem[]>(() => {
+    const out: ChatItem[] = [];
+    let lastDay = '';
+    conversation.messages.forEach((m) => {
+      const label = dayLabel(m.date);
+      if (label !== lastDay) {
+        out.push({ type: 'date', id: `date-${m.id}`, label });
+        lastDay = label;
+      }
+      out.push({ type: 'message', id: m.id, message: m });
+    });
+    return out;
+  }, [conversation.messages]);
 
   const send = () => {
     const text = draft.trim();
@@ -232,42 +481,45 @@ function ChatView({
     <SafeAreaView style={styles.safe} edges={['top']}>
       <StatusBar barStyle="light-content" />
 
-      {/* Chat header */}
-      <View style={styles.chatHeader}>
-        <TouchableOpacity onPress={onBack} hitSlop={12}>
-          <Ionicons name="chevron-back" size={26} color={colors.textGreenBg} />
-        </TouchableOpacity>
-        <View style={styles.chatAvatar} />
-        <View>
-          <Text style={styles.chatName}>{conversation.name}</Text>
-          <Text style={styles.chatCourse}>{conversation.course}</Text>
+      {/* Header: avatar, name, course, close button */}
+      <View style={chat.header}>
+        <View style={chat.avatar} />
+        <View style={{ flex: 1 }}>
+          <Text style={chat.name} numberOfLines={1}>
+            {conversation.name}
+          </Text>
+          <Text style={chat.course}>{conversation.course}</Text>
         </View>
+        <TouchableOpacity style={chat.closeBtn} onPress={onClose} hitSlop={10}>
+          <Ionicons name="close" size={18} color={colors.text} />
+        </TouchableOpacity>
       </View>
 
+      {/* What they are ordering */}
+      {conversation.product && <ProductCard product={conversation.product} />}
+
       <KeyboardAvoidingView
-        style={styles.chatBody}
+        style={chat.body}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <FlatList
           ref={listRef}
-          data={conversation.messages}
-          keyExtractor={(m) => m.id}
+          data={items}
+          keyExtractor={(i) => i.id}
           contentContainerStyle={{ padding: 16 }}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
-          renderItem={({ item }) => (
-            <View style={[styles.bubbleWrap, item.fromMe ? styles.right : styles.left]}>
-              <View style={[styles.bubble, item.fromMe ? styles.bubbleMe : styles.bubbleThem]}>
-                <Text style={item.fromMe ? styles.textMe : styles.textThem}>{item.text}</Text>
-              </View>
-              <Text style={styles.bubbleTime}>{item.time}</Text>
-            </View>
-          )}
+          renderItem={({ item: i }) =>
+            i.type === 'date' ? (
+              <Text style={chat.dateLabel}>{i.label}</Text>
+            ) : (
+              <MessageBubble message={i.message} />
+            )
+          }
         />
 
-        {/* Message box (extra bottom space so the tab bar doesn't cover it) */}
-        <View style={styles.composer}>
+        <View style={chat.composer}>
           <TextInput
-            style={styles.composerInput}
+            style={chat.input}
             placeholder="Type a message"
             placeholderTextColor={colors.textMuted}
             value={draft}
@@ -275,7 +527,7 @@ function ChatView({
             multiline
           />
           <TouchableOpacity
-            style={[styles.sendBtn, !draft.trim() && styles.sendBtnOff]}
+            style={[chat.sendBtn, !draft.trim() && chat.sendBtnOff]}
             onPress={send}
             disabled={!draft.trim()}
           >
@@ -287,10 +539,13 @@ function ChatView({
   );
 }
 
+// =====================================================================
+// 6. STYLES
+// =====================================================================
+
+// Screen + list
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.primary },
-
-  // List header
   header: {
     backgroundColor: colors.primary,
     paddingHorizontal: 24,
@@ -319,27 +574,71 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: colors.text,
   },
-
-  // Filter
+  filterWrap: { backgroundColor: colors.background },
   filterRow: {
-    backgroundColor: colors.background,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    flexDirection: 'row',
+    alignItems: 'center',
   },
   chip: {
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 20,
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingVertical: 5,
+    marginRight: 8,
   },
   chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   chipText: { fontSize: 13, letterSpacing: 1, color: colors.text },
   chipTextActive: { color: colors.textGreenBg },
-
-  // List
   list: { flex: 1, backgroundColor: colors.background },
+  separator: { height: 1, backgroundColor: colors.border },
+  empty: { textAlign: 'center', marginTop: 40, color: colors.textMuted },
+});
+
+// MessageBubble
+const bubble = StyleSheet.create({
+  wrap: { maxWidth: '80%', marginBottom: 12 },
+  left: { alignSelf: 'flex-start', alignItems: 'flex-start' },
+  right: { alignSelf: 'flex-end', alignItems: 'flex-end' },
+  box: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 9 },
+  boxMine: { backgroundColor: colors.primary },
+  boxTheirs: { backgroundColor: '#E5E7EB' },
+  text: { fontSize: 13, letterSpacing: 0.5 },
+  textMine: { color: colors.textGreenBg },
+  textTheirs: { color: colors.text },
+  time: { fontSize: 10, color: colors.textMuted, marginTop: 3, marginHorizontal: 4 },
+});
+
+// ProductCard
+const card = StyleSheet.create({
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  image: { width: 64, height: 64, borderRadius: 8 },
+  imagePlaceholder: { backgroundColor: '#B5B5B5' },
+  info: { flex: 1, marginLeft: 12 },
+  price: { fontSize: 16, fontWeight: '700', color: colors.text },
+  title: { fontSize: 13, fontWeight: '700', color: colors.text, marginTop: 2 },
+  badge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#DDF5E6',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    marginTop: 6,
+  },
+  badgeText: { fontSize: 11, color: colors.primary, letterSpacing: 0.5 },
+});
+
+// ConversationItem
+const item = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -348,7 +647,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   avatar: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.surface },
-  rowText: { flex: 1, marginLeft: 12, marginRight: 8 },
+  text: { flex: 1, marginLeft: 12, marginRight: 8 },
   name: { fontSize: 14, letterSpacing: 1, marginBottom: 4 },
   preview: { fontSize: 13, letterSpacing: 1 },
   bold: { fontWeight: '700', color: colors.text },
@@ -371,48 +670,60 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   thumb: { width: 60, height: 60, borderRadius: 10, backgroundColor: colors.surface },
-  separator: { height: 1, backgroundColor: colors.border },
-  empty: { textAlign: 'center', marginTop: 40, color: colors.textMuted },
+});
 
-  // Chat
-  chatHeader: {
+// ChatScreen
+const chat = StyleSheet.create({
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.primary,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
-  chatAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: colors.background,
-    marginLeft: 8,
     marginRight: 12,
   },
-  chatName: { color: colors.textGreenBg, fontSize: 16, fontWeight: '700', letterSpacing: 1 },
-  chatCourse: { color: colors.textGreenBg, fontSize: 13, letterSpacing: 1 },
-  chatBody: { flex: 1, backgroundColor: colors.background },
-  bubbleWrap: { marginBottom: 12, maxWidth: '80%' },
-  left: { alignSelf: 'flex-start', alignItems: 'flex-start' },
-  right: { alignSelf: 'flex-end', alignItems: 'flex-end' },
-  bubble: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleMe: { backgroundColor: colors.primary },
-  bubbleThem: { backgroundColor: colors.surface },
-  textMe: { color: colors.textGreenBg, fontSize: 14 },
-  textThem: { color: colors.text, fontSize: 14 },
-  bubbleTime: { fontSize: 10, color: colors.textMuted, marginTop: 3 },
+  name: { color: colors.textGreenBg, fontSize: 15, fontWeight: '700', letterSpacing: 1 },
+  course: {
+    color: colors.textGreenBg,
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  body: { flex: 1, backgroundColor: colors.background },
+  dateLabel: {
+    alignSelf: 'center',
+    fontSize: 11,
+    color: colors.textMuted,
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: 12,
     paddingTop: 10,
-    paddingBottom: 100, // space for the tab bar
+    paddingBottom: 100, // space so the tab bar doesn't cover the message box
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.background,
   },
-  composerInput: {
+  input: {
     flex: 1,
     maxHeight: 100,
     backgroundColor: colors.surface,
