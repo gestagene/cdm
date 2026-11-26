@@ -1,97 +1,60 @@
-
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-} from "react-native";
-
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import type { Listing } from "@/types/listing";
 import { colors } from "../constants/theme";
 
-/* ---------- Types ---------- */
-
-export type Condition =
-  | "Like New"
-  | "Used - Good"
-  | "Used - Fair";
-
 interface ListedItemProps {
-  title: string;
-  price: number;
-  condition: Condition;
-  category: string;
+  listing: Listing;
   onClick: () => void;
 }
 
 /* ---------- Condition Colors ---------- */
 
 const CONDITION_COLORS: Record<
-  Condition,
+  Listing["condition"],
   { bg: string; fg: string }
 > = {
+  New: {
+    bg: "#D9F7E2",
+    fg: "#0B5A2B",
+  },
   "Like New": {
     bg: "#D9F7E2",
     fg: "#0B5A2B",
   },
-  "Used - Good": {
+  Good: {
     bg: "#D9F7E2",
     fg: "#2E7D4F",
   },
-  "Used - Fair": {
+  Fair: {
     bg: "#FFEFB8",
     fg: "#8A6A00",
   },
 };
 
-/* ---------- Component ---------- */
-
-export default function ListedItem({
-  title,
-  price,
-  condition,
-  category,
-  onClick,
-}: ListedItemProps) {
-  const badge = CONDITION_COLORS[condition];
+export default function ListedItem({ listing, onClick }: ListedItemProps) {
+  const badge = CONDITION_COLORS[listing.condition];
 
   return (
-    <Pressable
-      style={styles.card}
-      onPress={onClick}
-    >
+    <Pressable style={styles.card} onPress={onClick}>
       {/* Image Placeholder */}
       <View style={styles.imagePlaceholder} />
 
       {/* Product Information */}
       <View style={styles.cardBody}>
-        <Text style={styles.price}>
-          ₱ {price.toLocaleString("en-PH")}
-        </Text>
+        <Text style={styles.price}>₱ {listing.price}</Text>
 
         <Text style={styles.title} numberOfLines={1}>
-          {title}
+          {listing.title}
         </Text>
 
         {/* Condition */}
-        <View
-          style={[
-            styles.badge,
-            { backgroundColor: badge.bg },
-          ]}
-        >
-          <Text
-            style={[
-              styles.badgeText,
-              { color: badge.fg },
-            ]}
-          >
-            {condition}
+        <View style={[styles.badge, { backgroundColor: badge.bg }]}>
+          <Text style={[styles.badgeText, { color: badge.fg }]}>
+            {listing.condition}
           </Text>
         </View>
 
-        <Text style={styles.category}>
-          {category}
-        </Text>
+        <Text style={styles.category}>{listing.category}</Text>
       </View>
     </Pressable>
   );
