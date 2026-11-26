@@ -12,7 +12,27 @@ import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../constants/theme";
 
-const CATEGORIES = ["Uniforms", "Books", "Merch", "Others"];
+export type Category =
+  | "All"
+  | "Uniforms"
+  | "Books"
+  | "Supplies"
+  | "Merch"
+  | "Electronics"
+  | "Arts"
+  | "Essentials"
+  | "Others";
+
+const CATEGORIES: Exclude<Category, "All">[] = [
+  "Uniforms",
+  "Books",
+  "Supplies",
+  "Merch",
+  "Electronics",
+  "Arts",
+  "Essentials",
+  "Others",
+];
 const CONDITIONS = ["New", "Like New", "Good", "Fair"];
 const MAX_PHOTOS = 5;
 
