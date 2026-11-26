@@ -1,5 +1,5 @@
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FlatList,
   Pressable,
@@ -8,19 +8,31 @@ import {
   TextInput,
   View,
 } from "react-native";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
 import { colors } from "../../constants/theme";
+
+// Reusable Product Card
+import ListedItem, {
+  Condition,
+} from "../../components/ListedItem";
 
 /* ---------- Types ---------- */
 
-type Category = "All" | "Uniforms" | "Books" | "School Supply" | "Food";
-type Condition = "Like New" | "Used - Good" | "Used - Fair";
+type Category =
+  | "All"
+  | "Uniforms"
+  | "Books"
+  | "School Supply"
+  | "Food";
 
 interface Listing {
   id: string;
   title: string;
+  description: string;
   price: number;
   condition: Condition;
   category: Exclude<Category, "All">;
@@ -32,6 +44,7 @@ const MOCK_LISTINGS: Listing[] = [
   {
     id: "1",
     title: "PE Uniform, Size M",
+    description: "Pre-loved PE uniform in good condition.",
     price: 1071,
     condition: "Used - Good",
     category: "Uniforms",
@@ -39,6 +52,7 @@ const MOCK_LISTINGS: Listing[] = [
   {
     id: "2",
     title: "Book of Building",
+    description: "Secondhand educational reference book.",
     price: 350,
     condition: "Used - Fair",
     category: "Books",
@@ -46,6 +60,7 @@ const MOCK_LISTINGS: Listing[] = [
   {
     id: "3",
     title: "Scientific Calculator",
+    description: "Scientific calculator, almost brand new.",
     price: 6700,
     condition: "Like New",
     category: "School Supply",
@@ -53,39 +68,54 @@ const MOCK_LISTINGS: Listing[] = [
   {
     id: "4",
     title: "NSTP Shirt, Size XXL",
+    description: "NSTP shirt in good wearable condition.",
     price: 67,
     condition: "Used - Good",
     category: "Uniforms",
   },
 ];
 
-const CATEGORIES: Category[] = ["All", "Uniforms", "Books"];
-
-/* ---------- Condition Colors ---------- */
-
-const CONDITION_COLORS: Record<
-  Condition,
-  { bg: string; fg: string }
-> = {
-  "Like New": {
-    bg: "#D9F7E2",
-    fg: "#0B5A2B",
-  },
-  "Used - Good": {
-    bg: "#D9F7E2",
-    fg: "#2E7D4F",
-  },
-  "Used - Fair": {
-    bg: "#FFEFB8",
-    fg: "#8A6A00",
-  },
-};
+const CATEGORIES: Category[] = [
+  "All",
+  "Uniforms",
+  "Books",
+];
 
 /* ---------- Screen ---------- */
 
 export default function HomeScreen() {
+  const { search: searchParam } =
+    useLocalSearchParams<{ search?: string }>();
+
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<Category>("All");
+
+  /* ---------- Receive Search From Item Screen ---------- */
+
+  useEffect(() => {
+    if (typeof searchParam === "string") {
+      setSearch(searchParam);
+      setCategory("All");
+    }
+  }, [searchParam]);
+
+  /* ---------- Navigation ---------- */
+
+  const navigateToItem = (item: Listing) => {
+    console.log("Opening product:", item.id);
+
+    router.push({
+      pathname: "/item",
+      params: {
+        id: item.id,
+        title: item.title,
+        description: item.description,
+        price: String(item.price),
+        condition: item.condition,
+        category: item.category,
+      },
+    });
+  };
 
   /* ---------- Dynamic Filtering ---------- */
 
@@ -94,66 +124,17 @@ export default function HomeScreen() {
 
     return MOCK_LISTINGS.filter((item) => {
       const matchesCategory =
-        category === "All" || item.category === category;
+        category === "All" ||
+        item.category === category;
 
       const matchesSearch =
-        item.title.toLowerCase().includes(query);
+        item.title.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query) ||
+        item.category.toLowerCase().includes(query);
 
       return matchesCategory && matchesSearch;
     });
   }, [search, category]);
-
-  /* ---------- Listing Card ---------- */
-
-  const renderItem = ({ item }: { item: Listing }) => {
-    const badge = CONDITION_COLORS[item.condition];
-
-    return (
-      <Pressable
-        style={styles.card}
-        onPress={() => console.log("Open listing:", item.id)}
-      >
-        {/* Image Placeholder */}
-        <View style={styles.cardImage} />
-
-        <View style={styles.cardBody}>
-
-          {/* Dynamic Price */}
-          <Text style={styles.price}>
-            ₱ {item.price.toLocaleString("en-PH")}
-          </Text>
-
-          {/* Dynamic Title */}
-          <Text style={styles.title} numberOfLines={1}>
-            {item.title}
-          </Text>
-
-          {/* Dynamic Condition */}
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: badge.bg },
-            ]}
-          >
-            <Text
-              style={[
-                styles.badgeText,
-                { color: badge.fg },
-              ]}
-            >
-              {item.condition}
-            </Text>
-          </View>
-
-          {/* Dynamic Category */}
-          <Text style={styles.category}>
-            {item.category}
-          </Text>
-
-        </View>
-      </Pressable>
-    );
-  };
 
   /* ---------- UI ---------- */
 
@@ -162,7 +143,10 @@ export default function HomeScreen() {
       <StatusBar style="light" />
 
       {/* Header */}
-      <SafeAreaView edges={["top"]} style={styles.header}>
+      <SafeAreaView
+        edges={["top"]}
+        style={styles.header}
+      >
         <Text style={styles.headerTitle}>
           Colegio De Marketplace
         </Text>
@@ -221,7 +205,15 @@ export default function HomeScreen() {
         columnWrapperStyle={styles.row}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        renderItem={renderItem}
+        renderItem={({ item }) => (
+          <ListedItem
+            title={item.title}
+            price={item.price}
+            condition={item.condition}
+            category={item.category}
+            onClick={() => navigateToItem(item)}
+          />
+        )}
         ListEmptyComponent={
           <Text style={styles.empty}>
             No listings found.
@@ -240,7 +232,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
 
-  /* Header */
   header: {
     backgroundColor: colors.primary,
     paddingHorizontal: 16,
@@ -274,7 +265,6 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
 
-  /* Category Chips */
   chipRow: {
     flexDirection: "row",
     gap: 8,
@@ -306,7 +296,6 @@ const styles = StyleSheet.create({
     color: colors.textGreenBg,
   },
 
-  /* Listing Grid */
   list: {
     paddingHorizontal: 12,
     paddingBottom: 24,
@@ -317,57 +306,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  /* Listing Card */
-  card: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-
-  cardImage: {
-    width: "100%",
-    height: 100,
-    backgroundColor: colors.border,
-  },
-
-  cardBody: {
-    padding: 8,
-    gap: 2,
-  },
-
-  /* Dynamic Attributes */
-  price: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.text,
-  },
-
-  title: {
-    fontSize: 12,
-    color: colors.text,
-  },
-
-  badge: {
-    alignSelf: "flex-start",
-    marginTop: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 3,
-    borderRadius: 10,
-  },
-
-  badgeText: {
-    fontSize: 10,
-    fontWeight: "600",
-  },
-
-  category: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-
-  /* Empty Results */
   empty: {
     textAlign: "center",
     marginTop: 40,

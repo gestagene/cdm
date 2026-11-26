@@ -1,5 +1,11 @@
+
 import { Tabs } from "expo-router";
-import { House, CirclePlus, MessagesSquare, User } from "lucide-react-native";
+import {
+  House,
+  CirclePlus,
+  MessagesSquare,
+  User,
+} from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
 
@@ -14,7 +20,9 @@ export default function TabsLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
-        sceneStyle: { backgroundColor: colors.background },
+        sceneStyle: {
+          backgroundColor: colors.background,
+        },
         tabBarStyle: {
           position: "absolute",
           left: 16,
@@ -38,17 +46,27 @@ export default function TabsLayout() {
           alignItems: "center",
           paddingVertical: 0,
         },
-        tabBarIconStyle: { marginTop: 0, marginBottom: 0 },
-        tabBarLabelStyle: { fontSize: 10, marginTop: 2, marginBottom: 0 },
+        tabBarIconStyle: {
+          marginTop: 0,
+          marginBottom: 0,
+        },
+        tabBarLabelStyle: {
+          fontSize: 10,
+          marginTop: 2,
+          marginBottom: 0,
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <House color={color} size={ICON_SIZE} />,
+          tabBarIcon: ({ color }) => (
+            <House color={color} size={ICON_SIZE} />
+          ),
         }}
       />
+
       <Tabs.Screen
         name="sell"
         options={{
@@ -58,6 +76,7 @@ export default function TabsLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="messages"
         options={{
@@ -67,11 +86,14 @@ export default function TabsLayout() {
           ),
         }}
       />
+
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => <User color={color} size={ICON_SIZE} />,
+          tabBarIcon: ({ color }) => (
+            <User color={color} size={ICON_SIZE} />
+          ),
         }}
       />
     </Tabs>
