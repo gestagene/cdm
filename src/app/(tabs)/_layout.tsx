@@ -1,11 +1,5 @@
-
 import { Tabs } from "expo-router";
-import {
-  House,
-  CirclePlus,
-  MessagesSquare,
-  User,
-} from "lucide-react-native";
+import { House, CirclePlus, MessagesSquare, User } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "@/constants/theme";
 
@@ -61,9 +55,7 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => (
-            <House color={color} size={ICON_SIZE} />
-          ),
+          tabBarIcon: ({ color }) => <House color={color} size={ICON_SIZE} />,
         }}
       />
 
@@ -91,9 +83,7 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <User color={color} size={ICON_SIZE} />
-          ),
+          tabBarIcon: ({ color }) => <User color={color} size={ICON_SIZE} />,
         }}
       />
     </Tabs>
