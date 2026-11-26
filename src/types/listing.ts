@@ -11,8 +11,8 @@ export interface Listing {
   description: string;
   category: Category;
   condition: Condition;
-  media?: Media[];
-  status?: Status;
+  media: Media[];
+  status: Status;
 }
 
 export type Condition = "New" | "Like New" | "Good" | "Fair";
