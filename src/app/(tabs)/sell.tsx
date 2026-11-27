@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Image,
+  KeyboardAvoidingView,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
@@ -34,7 +35,22 @@ const CATEGORIES: Exclude<Category, "All">[] = [
   "Others",
 ];
 const CONDITIONS = ["New", "Like New", "Good", "Fair"];
+const MAX_TITLE = 80;
 const MAX_PHOTOS = 5;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png"];
+const MIN_PRICE = 1;
+const MAX_PRICE = 1000000;
+const MAX_DESCRIPTION = 200;
+
+const isAllowedImage = (asset: ImagePicker.ImagePickerAsset) => {
+  const mime = asset.mimeType?.toLowerCase();
+  if (mime) return ALLOWED_IMAGE_TYPES.includes(mime);
+  // fallback if the phone doesn't report a mime type
+  return /\.(jpe?g|png)$/i.test(asset.fileName ?? asset.uri);
+};
+
+const countWords = (text: string) =>
+  text.trim() === "" ? 0 : text.trim().split(/\s+/).length;
 
 export default function Sell() {
   const [title, setTitle] = useState("");
@@ -56,7 +72,13 @@ export default function Sell() {
     });
 
     if (!result.canceled) {
-      const uris = result.assets.map((a) => a.uri);
+      const valid = result.assets.filter(isAllowedImage);
+
+      if (valid.length < result.assets.length) {
+        alert("Only PNG and JPEG images are allowed.");
+      }
+
+      const uris = valid.map((a) => a.uri);
       setPhotos([...photos, ...uris].slice(0, MAX_PHOTOS));
     }
   };
@@ -65,11 +87,12 @@ export default function Sell() {
     setPhotos(photos.filter((_, i) => i !== index));
   };
   const handlePriceChange = (text: string) => {
-    // keep only digits and one dot, max 2 decimals
     const [whole, ...rest] = text.replace(/[^0-9.]/g, "").split(".");
     const cleaned = rest.length
       ? `${whole}.${rest.join("").slice(0, 2)}`
       : whole;
+
+    if (parseFloat(cleaned) > MAX_PRICE) return; // ignore anything above the max
     setPrice(cleaned);
   };
 
@@ -78,9 +101,39 @@ export default function Sell() {
     if (!isNaN(value)) setPrice(value.toFixed(2));
   };
 
+  const handleDescriptionChange = (text: string) => {
+    if (countWords(text) > MAX_DESCRIPTION) return; // ignore anything past the limit
+    setDescription(text);
+  };
+
   const handlePost = () => {
-    if (!title || !price || !category || !condition || !description) {
+    if (
+      !title.trim() ||
+      !price ||
+      !category ||
+      !condition ||
+      !description.trim()
+    ) {
       alert("Please fill in all fields");
+      return;
+    }
+    if (title.trim().length > MAX_TITLE) {
+      alert(`Title must be ${MAX_TITLE} characters or less.`);
+      return;
+    }
+    const value = parseFloat(price);
+    if (isNaN(value) || value < MIN_PRICE || value > MAX_PRICE) {
+      alert(
+        `Price must be between ₱${MIN_PRICE} and ₱${MAX_PRICE.toLocaleString()}.`
+      );
+      return;
+    }
+    if (photos.length === 0) {
+      alert("Please add at least one photo.");
+      return;
+    }
+    if (countWords(description) > MAX_DESCRIPTION) {
+      alert(`Description must be ${MAX_DESCRIPTION} words or less.`);
       return;
     }
   };
@@ -90,110 +143,122 @@ export default function Sell() {
       <View style={styles.header}>
         <Text style={styles.headerText}>New Listing</Text>
       </View>
-
-      <ScrollView contentContainerStyle={styles.form}>
-        <Text style={styles.label}>
-          Upload Photos ({photos.length}/{MAX_PHOTOS})
-        </Text>
-        <View style={styles.photoGrid}>
-          {photos.map((uri, i) => (
-            <View key={uri} style={styles.photoCard}>
-              <Image source={{ uri }} style={styles.photoImage} />
-              <TouchableOpacity
-                style={styles.removeBadge}
-                onPress={() => removePhoto(i)}
-              >
-                <Ionicons name="close" size={14} color="#fff" />
-              </TouchableOpacity>
-            </View>
-          ))}
-
-          {photos.length < MAX_PHOTOS && (
-            <TouchableOpacity
-              style={styles.photoCard}
-              onPress={pickPhoto}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="camera" size={28} color="#888" />
-              <View style={styles.addBadge}>
-                <Ionicons name="add" size={18} color="#000" />
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="height">
+        <ScrollView
+          contentContainerStyle={styles.form}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <Text style={styles.label}>
+            Upload Photos ({photos.length}/{MAX_PHOTOS})
+          </Text>
+          <View style={styles.photoGrid}>
+            {photos.map((uri, i) => (
+              <View key={uri} style={styles.photoCard}>
+                <Image source={{ uri }} style={styles.photoImage} />
+                <TouchableOpacity
+                  style={styles.removeBadge}
+                  onPress={() => removePhoto(i)}
+                >
+                  <Ionicons name="close" size={14} color="#fff" />
+                </TouchableOpacity>
               </View>
-            </TouchableOpacity>
-          )}
-        </View>
+            ))}
 
-        <Text style={styles.label}>Title</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g. NSTP Uniform, size M"
-          value={title}
-          onChangeText={setTitle}
-        />
+            {photos.length < MAX_PHOTOS && (
+              <TouchableOpacity
+                style={styles.photoCard}
+                onPress={pickPhoto}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="camera" size={28} color="#888" />
+                <View style={styles.addBadge}>
+                  <Ionicons name="add" size={18} color="#000" />
+                </View>
+              </TouchableOpacity>
+            )}
+          </View>
 
-        <Text style={styles.label}>Price</Text>
-        <View style={styles.priceBox}>
-          <Text style={styles.pesoSign}>₱</Text>
+          <Text style={styles.label}>Title</Text>
           <TextInput
-            style={styles.priceInput}
-            placeholder="0.00"
-            keyboardType="decimal-pad"
-            value={price}
-            onChangeText={handlePriceChange}
-            onBlur={formatPrice}
+            style={styles.input}
+            placeholder="e.g. NSTP Uniform, size M"
+            value={title}
+            onChangeText={setTitle}
+            maxLength={MAX_TITLE}
           />
-        </View>
+          <Text style={styles.counter}>
+            {title.length}/{MAX_TITLE}
+          </Text>
 
-        <Text style={styles.label}>Category</Text>
-        <View style={styles.chipRow}>
-          {CATEGORIES.map((item) => (
-            <TouchableOpacity
-              key={item}
-              style={[styles.chip, category === item && styles.chipActive]}
-              onPress={() => setCategory(category === item ? "" : item)}
-            >
-              <Text
-                style={
-                  category === item ? styles.chipTextActive : styles.chipText
-                }
+          <Text style={styles.label}>Price</Text>
+          <View style={styles.priceBox}>
+            <Text style={styles.pesoSign}>₱</Text>
+            <TextInput
+              style={styles.priceInput}
+              placeholder="0.00"
+              keyboardType="decimal-pad"
+              value={price}
+              onChangeText={handlePriceChange}
+              onBlur={formatPrice}
+            />
+          </View>
+
+          <Text style={styles.label}>Category</Text>
+          <View style={styles.chipRow}>
+            {CATEGORIES.map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[styles.chip, category === item && styles.chipActive]}
+                onPress={() => setCategory(category === item ? "" : item)}
               >
-                {item}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Text
+                  style={
+                    category === item ? styles.chipTextActive : styles.chipText
+                  }
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <Text style={styles.label}>Condition</Text>
-        <View style={styles.chipRow}>
-          {CONDITIONS.map((item) => (
-            <TouchableOpacity
-              key={item}
-              style={[styles.chip, condition === item && styles.chipActive]}
-              onPress={() => setCondition(condition === item ? "" : item)}
-            >
-              <Text
-                style={
-                  condition === item ? styles.chipTextActive : styles.chipText
-                }
+          <Text style={styles.label}>Condition</Text>
+          <View style={styles.chipRow}>
+            {CONDITIONS.map((item) => (
+              <TouchableOpacity
+                key={item}
+                style={[styles.chip, condition === item && styles.chipActive]}
+                onPress={() => setCondition(condition === item ? "" : item)}
               >
-                {item}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+                <Text
+                  style={
+                    condition === item ? styles.chipTextActive : styles.chipText
+                  }
+                >
+                  {item}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-        <Text style={styles.label}>Description</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          placeholder="Size, usage, flaws..."
-          multiline
-          value={description}
-          onChangeText={setDescription}
-        />
+          <Text style={styles.label}>Description</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Size, usage, flaws..."
+            multiline
+            value={description}
+            onChangeText={handleDescriptionChange}
+          />
+          <Text style={styles.counter}>
+            {countWords(description)}/{MAX_DESCRIPTION} words
+          </Text>
 
-        <TouchableOpacity style={styles.postButton} onPress={handlePost}>
-          <Text style={styles.postButtonText}>Post Listing</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          <TouchableOpacity style={styles.postButton} onPress={handlePost}>
+            <Text style={styles.postButtonText}>Post Listing</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -285,4 +350,5 @@ const styles = StyleSheet.create({
   },
   pesoSign: { fontSize: 16, fontWeight: "600", color: "#333", marginRight: 6 },
   priceInput: { flex: 1, paddingVertical: 10, fontSize: 14 },
+  counter: { fontSize: 11, color: "#888", textAlign: "right", marginTop: 4 },
 });

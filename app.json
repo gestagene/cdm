@@ -17,7 +17,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -35,6 +36,6 @@
         "projectId": "f156e6d8-b646-436b-b06c-78ee1b7a4cde"
       }
     },
-    "owner": "gestagene"
+    "owner": "gestagene"  
   }
 }
