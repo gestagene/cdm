@@ -1,41 +1,42 @@
+
 import { useEffect, useState } from 'react';
 import { BackHandler, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../constants/theme';
- 
+
 type Screen = 'profile' | 'edit' | 'saved' | 'listed';
- 
+
 // sample data (UI only)
 const savedItems = [
   { id: '1', title: 'Title', desc: 'Description Truncate...' },
   { id: '2', title: 'Pe Uniform, Size M', desc: '₱ 1,071 ...' },
 ];
- 
+
 const listedItems = [
   { id: '1', title: 'Title', desc: 'Description Truncate...', status: 'LISTED' },
   { id: '2', title: 'Pe Uniform, Size M', desc: '₱ 1,071 ...', status: 'SOLD' },
   { id: '3', title: 'Pe Uniform, Size M', desc: '₱ 1,071 ...', status: 'PENDING' },
 ];
- 
+
 const statusColor: Record<string, string> = {
   LISTED: '#D1D5DB',
   SOLD: 'rgba(239, 68, 68, 0.5)',
   PENDING: 'rgba(250, 204, 21, 0.5)',
 };
- 
+
 const titles: Record<string, string> = {
   edit: 'Edit Profile',
   saved: 'Saved Items',
   listed: 'Listed Items',
 };
- 
+
 export default function Profile() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [screen, setScreen] = useState<Screen>('profile');
- 
+
   // Android back button returns to the profile page first
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -47,7 +48,7 @@ export default function Profile() {
     });
     return () => sub.remove();
   }, [screen]);
- 
+
   const menu = [
     { label: 'My Listings', onPress: () => setScreen('listed') },
     { label: 'Saved Items', onPress: () => setScreen('saved') },
@@ -55,7 +56,7 @@ export default function Profile() {
     { label: 'Help & Feedback', onPress: () => {} },
     { label: 'Log Out', danger: true, onPress: () => router.replace('/login') },
   ];
- 
+
   return (
     <View style={styles.container}>
       {/* ---------- PROFILE ---------- */}
@@ -71,7 +72,7 @@ export default function Profile() {
               <Text style={styles.sub}>Verified</Text>
             </View>
           </View>
- 
+
           <TouchableOpacity
             activeOpacity={0.8}
             style={styles.editButton}
@@ -79,7 +80,7 @@ export default function Profile() {
           >
             <Text style={styles.editText}>Edit Profile</Text>
           </TouchableOpacity>
- 
+
           {menu.map((item) => (
             <TouchableOpacity
               key={item.label}
@@ -95,7 +96,7 @@ export default function Profile() {
           ))}
         </>
       )}
- 
+
       {/* ---------- GREEN HEADER FOR EDIT / SAVED / LISTED ---------- */}
       {screen !== 'profile' && (
         <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
@@ -109,17 +110,17 @@ export default function Profile() {
           <Text style={styles.headerText}>{titles[screen]}</Text>
         </View>
       )}
- 
+
       {/* ---------- EDIT PROFILE ---------- */}
       {screen === 'edit' && (
         <>
           <Text style={styles.section}>General</Text>
- 
+
           <View style={styles.editRow}>
             <Text style={styles.label}>Username</Text>
             <Text style={[styles.value, { marginRight: 26 }]}>GestaGeneBrian</Text>
           </View>
- 
+
           <TouchableOpacity activeOpacity={0.7} style={styles.editRow}>
             <Text style={styles.label}>Phone Number</Text>
             <View style={styles.right}>
@@ -132,21 +133,31 @@ export default function Profile() {
               />
             </View>
           </TouchableOpacity>
- 
+
           <TouchableOpacity activeOpacity={0.7} style={styles.editRow}>
             <Text style={styles.label}>Password</Text>
             <Ionicons name="chevron-forward" size={18} color={colors.text} />
           </TouchableOpacity>
- 
+
           <Text style={styles.section}>Verification</Text>
- 
-          <View style={styles.editRow}>
+
+          {/* ---------- STUDENT ID VERIFICATION ---------- */}
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.editRow}
+            onPress={() => router.push('/verification')}
+            accessibilityRole="button"
+            accessibilityLabel="Add Student ID"
+          >
             <Text style={styles.label}>Student ID</Text>
+
             <View style={[styles.pill, { backgroundColor: colors.border }]}>
-              <Text style={[styles.pillText, { color: colors.textMuted }]}>ADD</Text>
+              <Text style={[styles.pillText, { color: colors.textMuted }]}>
+                ADD
+              </Text>
             </View>
-          </View>
- 
+          </TouchableOpacity>
+
           <View style={styles.editRow}>
             <Text style={styles.label}>Institutional Email</Text>
             <View style={[styles.pill, { backgroundColor: 'rgba(16, 185, 129, 0.3)' }]}>
@@ -155,7 +166,7 @@ export default function Profile() {
           </View>
         </>
       )}
- 
+
       {/* ---------- SAVED ITEMS ---------- */}
       {screen === 'saved' &&
         savedItems.map((item) => (
@@ -176,14 +187,14 @@ export default function Profile() {
             </TouchableOpacity>
           </View>
         ))}
- 
+
       {/* ---------- LISTED ITEMS ---------- */}
       {screen === 'listed' && (
         <>
           <TouchableOpacity activeOpacity={0.8} style={styles.sort}>
             <Text style={styles.sortText}>SORT BY</Text>
           </TouchableOpacity>
- 
+
           {listedItems.map((item) => (
             <View key={item.id} style={styles.itemRow}>
               <View style={styles.textWrap}>
@@ -204,10 +215,10 @@ export default function Profile() {
     </View>
   );
 }
- 
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
- 
+
   // profile
   profileHeader: {
     backgroundColor: colors.primary,
@@ -254,7 +265,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   menuText: { fontSize: 15, color: colors.text, letterSpacing: 1 },
- 
+
   // green header (edit / saved / listed)
   header: {
     backgroundColor: colors.primary,
@@ -265,7 +276,7 @@ const styles = StyleSheet.create({
   },
   back: { marginRight: 6 },
   headerText: { color: colors.textGreenBg, fontSize: 24, fontWeight: '800', letterSpacing: 2 },
- 
+
   // edit profile
   section: {
     fontSize: 16,
@@ -299,7 +310,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillText: { fontSize: 11, letterSpacing: 1 },
- 
+
   // saved + listed rows
   itemRow: {
     flexDirection: 'row',
@@ -333,4 +344,3 @@ const styles = StyleSheet.create({
   },
   sortText: { fontSize: 11, color: colors.text, letterSpacing: 1 },
 });
- 
